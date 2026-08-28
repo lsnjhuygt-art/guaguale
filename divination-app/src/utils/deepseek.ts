@@ -2,23 +2,39 @@ import OpenAI from 'openai';
 import { getAllHexagrams, reconstructLiuyaoLines } from './hexagram';
 import { calculateLiuyaoLayout } from './liuyaoLayout';
 
-// Read config injected at build-time by Vite define block
-const apiKey = process.env.API_KEY || '';
-const baseURL = process.env.BASE_URL || 'https://api.deepseek.com';
-const model = process.env.MODEL || 'deepseek-chat';
+// 安全解析并清洗 build-time 注入的环境变量
+const sanitizeEnv = (val: any): string => {
+  if (!val || val === '0' || val === 0 || val === 'undefined' || val === 'null') return '';
+  return String(val).trim();
+};
+
+const formatBaseUrl = (urlStr: string): string => {
+  let url = sanitizeEnv(urlStr) || 'https://generativelanguage.googleapis.com/v1beta/openai/';
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `https://${url}`;
+  }
+  if (!url.endsWith('/')) {
+    url = `${url}/`;
+  }
+  return url;
+};
+
+const apiKey = sanitizeEnv(process.env.API_KEY);
+const baseURL = formatBaseUrl(process.env.BASE_URL || '');
+const model = sanitizeEnv(process.env.MODEL) || 'gemini-2.5-flash';
 
 let openai: OpenAI | null = null;
 
-// Initialize OpenAI client lazily to handle empty keys gracefully on startup
+// 初始化 OpenAI client
 const getOpenAIClient = () => {
   if (!openai) {
     if (!apiKey) {
-      console.warn('DeepSeek API Key is missing. AI divination interpretation will not function.');
+      console.warn('AI API Key is missing. AI divination interpretation will not function.');
     }
     openai = new OpenAI({
       apiKey: apiKey,
       baseURL: baseURL,
-      dangerouslyAllowBrowser: true // Essential for Vite browser environments
+      dangerouslyAllowBrowser: true
     });
   }
   return openai;
@@ -90,9 +106,6 @@ export interface ZiweiData {
   additionalContext?: string;
 }
 
-/**
- * Generate the system message and user prompt for the divination AI
- */
 export function getDivinationPrompt(
   type: 'liuyao' | 'meihua' | 'ziwei',
   data: any
@@ -374,7 +387,7 @@ export async function getDivinationInterpretation(
       return response.choices[0].message.content || '解卦未生成，请重试。';
     }
   } catch (error: any) {
-    console.error('DeepSeek API Call Failed:', error);
+    console.error('API Call Failed:', error);
     throw new Error(error.message || 'API 请求发生错误，请检查网络并重试。');
   }
 }
