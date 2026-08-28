@@ -8,7 +8,13 @@ import { writeFileSync } from 'fs'
 export default defineConfig(({ mode }) => {
   const rootEnv = loadEnv(mode, resolve(__dirname, '..'), '');
   const appEnv = loadEnv(mode, process.cwd(), '');
-  const env = { ...rootEnv, ...appEnv };
+  // 合并 process.env，确保 Vercel 注入的环境变量能够被打包工具读取
+  const env = { ...rootEnv, ...appEnv, ...process.env };
+
+  const finalApiKey = env.API_KEY || process.env.API_KEY || '';
+  const finalBaseUrl = env.BASE_URL || process.env.BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/';
+  const finalModel = env.MODEL || process.env.MODEL || 'gemini-2.5-flash';
+
   return {
     plugins: [
       react(),
@@ -125,9 +131,9 @@ export default defineConfig(({ mode }) => {
       }
     ],
     define: {
-      'process.env.API_KEY': JSON.stringify(env.API_KEY || ''),
-      'process.env.BASE_URL': JSON.stringify(env.BASE_URL || ''),
-      'process.env.MODEL': JSON.stringify(env.MODEL || ''),
+      'process.env.API_KEY': JSON.stringify(finalApiKey),
+      'process.env.BASE_URL': JSON.stringify(finalBaseUrl),
+      'process.env.MODEL': JSON.stringify(finalModel),
     }
   }
 })
